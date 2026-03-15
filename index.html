@@ -546,12 +546,22 @@ function addEntry() {
     } else {
       const title = (selectedJikanAnime?.title || document.getElementById('ani-search').value).trim();
       if (!title) return;
-      const nb = Math.max(1, parseInt(document.getElementById('ani-seasons').value)||1);
-      const seasons = Array.from({length:nb},(_,i) => ({
-        name: nb === 1 ? 'Saison 1' : `Saison ${i+1}`,
-        ep, seen: (st==='done' || i < nb-1) ? ep : 0,
-        status: i < nb-1 ? 'done' : st
-      }));
+      let seasons;
+      if (selectedJikanAnime?.seasons) {
+        // Use pre-built seasons from Jikan grouping, apply chosen status to last season
+        seasons = selectedJikanAnime.seasons.map((s, i, arr) => ({
+          ...s,
+          seen: (st === 'done' || i < arr.length - 1) ? s.ep : 0,
+          status: i < arr.length - 1 ? 'done' : st
+        }));
+      } else {
+        const nb = Math.max(1, parseInt(document.getElementById('ani-seasons').value)||1);
+        seasons = Array.from({length:nb},(_,i) => ({
+          name: nb === 1 ? 'Saison 1' : `Saison ${i+1}`,
+          ep, seen: (st==='done' || i < nb-1) ? ep : 0,
+          status: i < nb-1 ? 'done' : st
+        }));
+      }
       state.animes.push({ id: Date.now(), title, img: selectedJikanAnime?.img || null, seasons });
     }
   } else {
@@ -565,48 +575,103 @@ function addEntry() {
 }
 
 // ─── JIKAN API ────────────────────────────────────────────────────────────────
-async function searchJikan(query, type, resultsId, onSelect, epInput, totalInput) {
+
+// Strip season suffixes to get base title: "My Hero Academia 2nd Season" -> "My Hero Academia"
+function getBaseTitle(title) {
+  return title
+    .replace(/\s*(\d+(?:st|nd|rd|th)?\s*season|saison\s*\d+|part\s*\d+|cour\s*\d+|:\s*[^:]+season.*|\d+$)/gi, '')
+    .replace(/\s+$/, '')
+    .trim();
+}
+
+// Group anime results by base title, merging seasons
+function groupAnimeResults(items) {
+  const groups = {};
+  const order = [];
+  items.forEach(item => {
+    const base = getBaseTitle(item.title);
+    if (!groups[base]) {
+      groups[base] = { baseTitle: base, seasons: [], img: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '' };
+      order.push(base);
+    }
+    groups[base].seasons.push({ title: item.title, ep: item.episodes || 12, mal_id: item.mal_id });
+  });
+  return order.map(k => groups[k]);
+}
+
+async function searchJikan(query, type, resultsId) {
   const el = document.getElementById(resultsId);
   if (!query || query.length < 2) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="loading-pill">Recherche...</div>`;
   try {
-    const r = await fetch(`https://api.jikan.moe/v4/${type}?q=${encodeURIComponent(query)}&limit=8&sfw`);
+    const r = await fetch(`https://api.jikan.moe/v4/${type}?q=${encodeURIComponent(query)}&limit=12&sfw`);
     const d = await r.json();
     const items = d.data || [];
     if (!items.length) { el.innerHTML = `<div class="loading-pill">Aucun résultat</div>`; return; }
-    el.innerHTML = items.map((item,i) => {
-      const img = item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '';
-      const sub = type === 'anime'
-        ? `${item.type||''} · ${item.episodes ? item.episodes+' ep' : '?'}`
-        : `${item.type||''} · ${item.volumes ? item.volumes+' vol' : '?'}`;
-      return `<div class="jri" onclick="selectJikan(${i}, '${resultsId}', '${type}')">
-        <img src="${img}" onerror="this.style.opacity=0"/>
-        <div class="jri-info">
-          <div class="jri-title">${item.title}</div>
-          <div class="jri-sub">${sub}</div>
-        </div>
-      </div>`;
-    }).join('');
-    // store results on element for click handler
-    el._results = items;
+
+    if (type === 'anime') {
+      const groups = groupAnimeResults(items);
+      el._groups = groups;
+      el.innerHTML = groups.map((g, i) => {
+        const totalEp = g.seasons.reduce((s, x) => s + x.ep, 0);
+        const nbS = g.seasons.length;
+        const sub = `${nbS} saison${nbS > 1 ? 's' : ''} · ~${totalEp} ep`;
+        return `<div class="jri" onclick="selectJikanGroup(${i}, '${resultsId}')">
+          <img src="${g.img}" onerror="this.style.opacity=0"/>
+          <div class="jri-info">
+            <div class="jri-title">${g.baseTitle}</div>
+            <div class="jri-sub">${sub}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      el._results = items;
+      el.innerHTML = items.map((item, i) => {
+        const img = item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '';
+        const sub = `${item.type||''} · ${item.volumes ? item.volumes+' vol' : '?'}`;
+        return `<div class="jri" onclick="selectJikan(${i}, '${resultsId}', 'manga')">
+          <img src="${img}" onerror="this.style.opacity=0"/>
+          <div class="jri-info">
+            <div class="jri-title">${item.title}</div>
+            <div class="jri-sub">${sub}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
   } catch(e) {
     el.innerHTML = `<div class="loading-pill">Erreur réseau</div>`;
   }
+}
+
+function selectJikanGroup(idx, resultsId) {
+  const el = document.getElementById(resultsId);
+  const group = el._groups[idx];
+  if (!group) return;
+  // Build seasons from group
+  selectedJikanAnime = {
+    title: group.baseTitle,
+    img: group.img,
+    seasons: group.seasons.map((s, i) => ({
+      name: `Saison ${i+1}`,
+      ep: s.ep,
+      seen: 0,
+      status: 'ongoing'
+    }))
+  };
+  document.getElementById('ani-search').value = group.baseTitle;
+  document.getElementById('ani-seasons').value = group.seasons.length;
+  // Use last season ep count as default
+  document.getElementById('ani-ep').value = group.seasons[group.seasons.length-1]?.ep || 12;
+  el.innerHTML = '';
 }
 
 function selectJikan(idx, resultsId, type) {
   const el = document.getElementById(resultsId);
   const item = el._results[idx];
   if (!item) return;
-  if (type === 'anime') {
-    selectedJikanAnime = { title: item.title, img: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null, malId: item.mal_id };
-    document.getElementById('ani-search').value = item.title;
-    if (item.episodes) document.getElementById('ani-ep').value = item.episodes;
-  } else {
-    selectedJikanManga = { title: item.title, img: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null };
-    document.getElementById('man-search').value = item.title;
-    if (item.volumes) document.getElementById('man-total').value = item.volumes;
-  }
+  selectedJikanManga = { title: item.title, img: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null };
+  document.getElementById('man-search').value = item.title;
+  if (item.volumes) document.getElementById('man-total').value = item.volumes;
   el.innerHTML = '';
 }
 
