@@ -196,12 +196,16 @@ html,body{height:100%;background:var(--bg0);color:var(--t1);font-family:var(--ff
     <div class="modal-title" id="modal-title">AJOUTER ANIME</div>
     <div id="anime-add-form">
       <div class="field-wrap">
-        <div class="field-label">Titre (recherche Jikan)</div>
-        <input class="modal-input" id="ani-search" type="text" placeholder="ex: Naruto, Death Note..." oninput="debounceJikan()"/>
+        <div class="field-label" id="ani-search-label">Recherche anime</div>
+        <input class="modal-input" id="ani-search" type="text" placeholder="ex: My Hero Academia..." oninput="debounceJikan()"/>
         <div class="jikan-results" id="jikan-results"></div>
       </div>
+      <div class="field-wrap" id="ani-season-name-wrap" style="display:none">
+        <div class="field-label">Nom de la saison</div>
+        <input class="modal-input" id="ani-season-name" type="text" placeholder="ex: Saison 2, Arc Tournoi..."/>
+      </div>
       <div class="modal-row">
-        <div class="field-wrap">
+        <div class="field-wrap" id="ani-seasons-wrap">
           <div class="field-label">Saisons</div>
           <input class="modal-input" id="ani-seasons" type="number" min="1" value="1" placeholder="1"/>
         </div>
@@ -251,6 +255,7 @@ let selectedJikanAnime = null;
 let selectedJikanManga = null;
 let jikanTimer = null;
 let deferredPrompt = null;
+let addSeasonToId = null;
 
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
 function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e){} }
@@ -340,7 +345,7 @@ function renderAnimes(list) {
           </div>
         </div>
         <span class="status-pill ${ts}">${STATUS_LABEL[ts]}</span>
-        <span class="card-del" onclick="delAnime(${a.id})">✕</span>
+        <span class="card-del" onclick="openAddSeason(${a.id})" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:5px;color:var(--t2)">+ Saison</span><span class="card-del" onclick="delAnime(${a.id})">✕</span>
         <span class="chev ${isOpen?'open':''}">▶</span>
       </div>
       ${isOpen ? `<div class="seasons-body">${seasonsHtml}</div>` : ''}
@@ -489,6 +494,7 @@ function switchTab(tab) {
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
 function openModal() {
+  addSeasonToId = null;
   const isAnime = currentTab === 'anime';
   document.getElementById('modal-title').textContent = isAnime ? 'AJOUTER ANIME' : 'AJOUTER MANGA';
   document.getElementById('anime-add-form').style.display = isAnime ? 'block' : 'none';
@@ -496,9 +502,32 @@ function openModal() {
   document.getElementById('jikan-results').innerHTML = '';
   document.getElementById('jikan-manga-results').innerHTML = '';
   document.getElementById('ani-search').value = '';
+  document.getElementById('ani-search').disabled = false;
+  document.getElementById('ani-search-label').textContent = 'Recherche anime';
+  document.getElementById('ani-seasons-wrap').style.display = 'block';
+  document.getElementById('ani-season-name-wrap').style.display = 'none';
   document.getElementById('man-search').value = '';
   selectedJikanAnime = null;
   selectedJikanManga = null;
+  document.getElementById('modal').classList.add('open');
+}
+
+function openAddSeason(animeId) {
+  const anime = state.animes.find(a => a.id === animeId);
+  if (!anime) return;
+  addSeasonToId = animeId;
+  document.getElementById('modal-title').textContent = 'AJOUTER SAISON';
+  document.getElementById('anime-add-form').style.display = 'block';
+  document.getElementById('manga-add-form').style.display = 'none';
+  document.getElementById('ani-search').value = anime.title;
+  document.getElementById('ani-search').disabled = true;
+  document.getElementById('ani-search-label').textContent = anime.title;
+  document.getElementById('jikan-results').innerHTML = '';
+  document.getElementById('ani-seasons-wrap').style.display = 'none';
+  document.getElementById('ani-season-name-wrap').style.display = 'block';
+  document.getElementById('ani-season-name').value = 'Saison ' + (anime.seasons.length + 1);
+  document.getElementById('ani-ep').value = anime.seasons[anime.seasons.length-1]?.ep || 12;
+  document.getElementById('ani-status').value = 'ongoing';
   document.getElementById('modal').classList.add('open');
 }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
@@ -506,17 +535,25 @@ document.getElementById('modal').addEventListener('click', e => { if (e.target =
 
 function addEntry() {
   if (currentTab === 'anime') {
-    const title = (selectedJikanAnime?.title || document.getElementById('ani-search').value).trim();
-    if (!title) return;
-    const nb = Math.max(1, parseInt(document.getElementById('ani-seasons').value)||1);
     const ep = Math.max(1, parseInt(document.getElementById('ani-ep').value)||12);
     const st = document.getElementById('ani-status').value;
-    const seasons = Array.from({length:nb},(_,i) => ({
-      name: nb === 1 ? 'Saison 1' : `Saison ${i+1}`,
-      ep, seen: (st==='done' || i < nb-1) ? ep : 0,
-      status: i < nb-1 ? 'done' : st
-    }));
-    state.animes.push({ id: Date.now(), title, img: selectedJikanAnime?.img || null, seasons });
+    if (addSeasonToId) {
+      // Adding a season to existing anime
+      const anime = state.animes.find(a => a.id === addSeasonToId);
+      if (!anime) return;
+      const sname = document.getElementById('ani-season-name').value.trim() || `Saison ${anime.seasons.length+1}`;
+      anime.seasons.push({ name: sname, ep, seen: st==='done'?ep:0, status: st });
+    } else {
+      const title = (selectedJikanAnime?.title || document.getElementById('ani-search').value).trim();
+      if (!title) return;
+      const nb = Math.max(1, parseInt(document.getElementById('ani-seasons').value)||1);
+      const seasons = Array.from({length:nb},(_,i) => ({
+        name: nb === 1 ? 'Saison 1' : `Saison ${i+1}`,
+        ep, seen: (st==='done' || i < nb-1) ? ep : 0,
+        status: i < nb-1 ? 'done' : st
+      }));
+      state.animes.push({ id: Date.now(), title, img: selectedJikanAnime?.img || null, seasons });
+    }
   } else {
     const title = (selectedJikanManga?.title || document.getElementById('man-search').value).trim();
     if (!title) return;
@@ -538,7 +575,7 @@ async function searchJikan(query, type, resultsId, onSelect, epInput, totalInput
     const items = d.data || [];
     if (!items.length) { el.innerHTML = `<div class="loading-pill">Aucun résultat</div>`; return; }
     el.innerHTML = items.map((item,i) => {
-      const img = item.images?.jpg?.small_image_url || '';
+      const img = item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '';
       const sub = type === 'anime'
         ? `${item.type||''} · ${item.episodes ? item.episodes+' ep' : '?'}`
         : `${item.type||''} · ${item.volumes ? item.volumes+' vol' : '?'}`;
@@ -562,11 +599,11 @@ function selectJikan(idx, resultsId, type) {
   const item = el._results[idx];
   if (!item) return;
   if (type === 'anime') {
-    selectedJikanAnime = { title: item.title, img: item.images?.jpg?.small_image_url || null };
+    selectedJikanAnime = { title: item.title, img: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null, malId: item.mal_id };
     document.getElementById('ani-search').value = item.title;
     if (item.episodes) document.getElementById('ani-ep').value = item.episodes;
   } else {
-    selectedJikanManga = { title: item.title, img: item.images?.jpg?.small_image_url || null };
+    selectedJikanManga = { title: item.title, img: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || null };
     document.getElementById('man-search').value = item.title;
     if (item.volumes) document.getElementById('man-total').value = item.volumes;
   }
