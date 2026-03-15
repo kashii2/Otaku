@@ -165,6 +165,20 @@ html,body{height:100%;background:var(--bg0);color:var(--t1);font-family:var(--ff
 /* DELETE */
 .card-del{color:var(--t3);font-size:13px;padding:4px;cursor:pointer;margin-left:2px;transition:color .15s}
 .card-del:hover{color:var(--red)}
+
+.edit-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;align-items:flex-end;justify-content:center}
+.edit-modal-overlay.open{display:flex;animation:fadeIn .15s}
+.edit-sheet{background:var(--bg2);border:0.5px solid var(--border);border-radius:18px 18px 0 0;padding:1.25rem;width:100%;max-width:480px;animation:slideUp .2s cubic-bezier(.25,.46,.45,.94);max-height:85vh;overflow-y:auto}
+.edit-sheet::-webkit-scrollbar{width:2px}
+.edit-season-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.edit-season-row:last-child{border-bottom:none}
+.edit-season-num{font-size:12px;color:var(--t3);width:20px;flex-shrink:0}
+.edit-season-input{flex:1;background:var(--bg3);border:0.5px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--t1);font-size:13px;font-family:var(--ff-body);outline:none}
+.edit-ep-input{width:58px;background:var(--bg3);border:0.5px solid var(--border);border-radius:7px;padding:7px 8px;color:var(--t1);font-size:13px;font-family:var(--ff-body);text-align:center;outline:none}
+.edit-del-btn{width:26px;height:26px;border-radius:6px;background:transparent;border:0.5px solid var(--border);color:var(--t3);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.edit-del-btn:hover{color:var(--red);border-color:var(--red-border)}
+.edit-add-row{display:flex;align-items:center;justify-content:center;padding:10px 0 0}
+.edit-add-season-btn{font-size:12px;color:var(--t2);background:var(--bg3);border:0.5px solid var(--border);border-radius:7px;padding:6px 16px;cursor:pointer;font-family:var(--ff-body)}
 </style>
 </head>
 <body>
@@ -350,7 +364,7 @@ function renderAnimes(list) {
           </div>
         </div>
         <span class="status-pill ${ts}">${STATUS_LABEL[ts]}</span>
-        <span class="card-del" onclick="openAddSeason(${a.id})" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:5px;color:var(--t2)">+ Saison</span><span class="card-del" onclick="delAnime(${a.id})">✕</span>
+        <span class="card-del" onclick="openEditSeasons(${a.id})" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:5px;color:var(--t2)">✎</span><span class="card-del" onclick="openAddSeason(${a.id})" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:5px;color:var(--t2)">+ Saison</span><span class="card-del" onclick="delAnime(${a.id})">✕</span>
         <span class="chev ${isOpen?'open':''}">▶</span>
       </div>
       ${isOpen ? `<div class="seasons-body">${seasonsHtml}</div>` : ''}
@@ -755,6 +769,69 @@ function loadDemoData() {
 load();
 loadDemoData();
 render();
+
+// ─── EDIT SEASONS MODAL ───────────────────────────────────────────────────────
+let editAnimeId = null;
+let editSeasonsDraft = [];
+
+function openEditSeasons(animeId) {
+  const anime = state.animes.find(a => a.id === animeId);
+  if (!anime) return;
+  editAnimeId = animeId;
+  editSeasonsDraft = anime.seasons.map(s => ({...s}));
+  document.getElementById('edit-modal-title').textContent = anime.title.toUpperCase();
+  renderEditSeasons();
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function renderEditSeasons() {
+  const el = document.getElementById('edit-seasons-list');
+  el.innerHTML = editSeasonsDraft.map((s,i) => `
+    <div class="edit-season-row">
+      <span class="edit-season-num">${i+1}</span>
+      <input class="edit-season-input" type="text" value="${s.name}" placeholder="Nom saison" onchange="editSeasonsDraft[${i}].name=this.value"/>
+      <input class="edit-ep-input" type="number" min="1" value="${s.ep}" placeholder="Ep" onchange="editSeasonsDraft[${i}].ep=Math.max(1,parseInt(this.value)||1)"/>
+      <button class="edit-del-btn" onclick="editRemoveSeason(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function editRemoveSeason(idx) {
+  editSeasonsDraft.splice(idx, 1);
+  renderEditSeasons();
+}
+
+function editAddSeason() {
+  const last = editSeasonsDraft[editSeasonsDraft.length-1];
+  editSeasonsDraft.push({
+    name: 'Saison ' + (editSeasonsDraft.length+1),
+    ep: last?.ep || 12,
+    seen: 0,
+    status: 'ongoing'
+  });
+  renderEditSeasons();
+}
+
+function saveEditSeasons() {
+  const anime = state.animes.find(a => a.id === editAnimeId);
+  if (!anime) return;
+  anime.seasons = editSeasonsDraft.map(s => ({
+    ...s,
+    ep: Math.max(1, parseInt(s.ep)||1),
+    seen: Math.min(s.seen, Math.max(1, parseInt(s.ep)||1))
+  }));
+  save(); closeEditModal(); render();
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  editAnimeId = null;
+  editSeasonsDraft = [];
+}
+
+document.getElementById('edit-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeEditModal();
+});
 </script>
 </body>
 </html>
