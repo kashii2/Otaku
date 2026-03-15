@@ -104,6 +104,7 @@ html,body{height:100%;background:var(--bg0);color:var(--t1);font-family:var(--ff
 .ep-btn{width:22px;height:22px;border-radius:5px;background:var(--bg4);border:0.5px solid var(--border);color:var(--t1);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;transition:background .12s}
 .ep-btn:hover{background:var(--bg4);border-color:var(--border2)}
 .ep-val{font-size:12px;color:var(--t1);min-width:28px;text-align:center}
+.ep-total-input{width:32px;background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;color:var(--t2);font-size:11px;text-align:center;padding:1px 2px;font-family:var(--ff-body)}
 .s-status-sel{font-size:11px;background:var(--bg3);border:0.5px solid var(--border);border-radius:6px;color:var(--t2);padding:3px 6px;cursor:pointer;font-family:var(--ff-body)}
 
 /* MANGA CARD */
@@ -321,7 +322,11 @@ function renderAnimes(list) {
           <div class="bar-bg" onclick="seekEp(${a.id},${i},event)">
             <div class="bar-fill ${fillClass}" style="width:${pct}%"></div>
           </div>
-          <div class="ep-text">${s.seen}/${s.ep} ep</div>
+          <div class="ep-text" style="display:flex;align-items:center;gap:4px">
+            <span>${s.seen}/</span>
+            <input class="ep-total-input" type="number" min="1" value="${s.ep}" onchange="setEpTotal(${a.id},${i},this.value)" onclick="event.stopPropagation()"/>
+            <span>ep</span>
+          </div>
         </div>
         <div class="ep-controls">
           <button class="ep-btn" onclick="adjEp(${a.id},${i},-1)">−</button>
@@ -417,6 +422,15 @@ function filterLocal() { render(); }
 function toggleCard(id) {
   if (openCards.has(id)) openCards.delete(id); else openCards.add(id);
   render();
+}
+
+function setEpTotal(animeId, si, val) {
+  const a = state.animes.find(x => x.id === animeId);
+  if (!a) return;
+  const ep = Math.max(1, parseInt(val)||1);
+  a.seasons[si].ep = ep;
+  a.seasons[si].seen = Math.min(a.seasons[si].seen, ep);
+  save(); render();
 }
 
 function adjEp(animeId, si, delta) {
