@@ -1,9 +1,9 @@
 {
   "name": "Otaku Tracker",
-  "short_name": "OtakuList",
+  "short_name": "Otaku",
   "description": "Suis tes animes et mangas",
-  "start_url": "/Otaku/index.html",
-  "scope": "/Otaku/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
