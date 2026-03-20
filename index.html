@@ -352,8 +352,9 @@ function renderAnimes(list) {
           <option value="done" ${s.status==='done'?'selected':''}>Terminé</option>
           <option value="paused" ${s.status==='paused'?'selected':''}>En pause</option>
         </select>
+        <button onclick="delSeason(${a.id},${i})" style="width:24px;height:24px;border-radius:5px;background:transparent;border:0.5px solid var(--border);color:var(--t3);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
       </div>`;
-    }).join('') + (isOpen ? '<div style="padding:8px 12px;border-top:0.5px solid var(--border);display:flex;gap:6px"><button onclick="openEditSeasons(' + a.id + ')" style="flex:1;padding:7px;font-size:12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:7px;color:var(--t2);cursor:pointer;font-family:var(--ff-body)">✎ Modifier les saisons</button></div>' : '') : '';
+    }).join('') : '';
     return `<div class="card" id="card-${a.id}">
       <div class="card-head" data-anime-id="${a.id}">
         <div onclick="toggleCard(${a.id})" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0">
@@ -832,6 +833,13 @@ function closeEditModal() {
 document.getElementById('edit-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeEditModal();
 });
+
+function delSeason(animeId, si) {
+  const a = state.animes.find(x => x.id === animeId);
+  if (!a || a.seasons.length <= 1) return;
+  a.seasons.splice(si, 1);
+  save(); render();
+}
 </script>
 </body>
 </html>
