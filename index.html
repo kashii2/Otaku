@@ -353,9 +353,7 @@ function renderAnimes(list) {
           <option value="paused" ${s.status==='paused'?'selected':''}>En pause</option>
         </select>
       </div>`;
-    }).join('') + (isOpen ? `<div style="padding:8px 12px;border-top:0.5px solid var(--border);display:flex;gap:6px">
-  <button onclick="openEditSeasons(${a.id})" style="flex:1;padding:7px;font-size:12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:7px;color:var(--t2);cursor:pointer;font-family:var(--ff-body)">✎ Modifier les saisons</button>
-</div>` : '') : '';
+    }).join('') + (isOpen ? '<div style="padding:8px 12px;border-top:0.5px solid var(--border);display:flex;gap:6px"><button onclick="openEditSeasons(' + a.id + ')" style="flex:1;padding:7px;font-size:12px;background:var(--bg3);border:0.5px solid var(--border);border-radius:7px;color:var(--t2);cursor:pointer;font-family:var(--ff-body)">✎ Modifier les saisons</button></div>' : '') : '';
     return `<div class="card" id="card-${a.id}">
       <div class="card-head" data-anime-id="${a.id}">
         <div onclick="toggleCard(${a.id})" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0">
