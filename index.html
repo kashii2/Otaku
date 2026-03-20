@@ -355,7 +355,7 @@ function renderAnimes(list) {
       </div>`;
     }).join('') : '';
     return `<div class="card" id="card-${a.id}">
-      <div class="card-head">
+      <div class="card-head" data-anime-id="${a.id}" oncontextmenu="event.preventDefault();openEditSeasons(${a.id})">
         <div onclick="toggleCard(${a.id})" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0">
           ${poster}${placeholder}
           <div class="card-meta">
@@ -364,7 +364,7 @@ function renderAnimes(list) {
           </div>
         </div>
         <span class="status-pill ${ts}">${STATUS_LABEL[ts]}</span>
-        <span class="card-del" onclick="openEditSeasons(${a.id})" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:5px;color:var(--t2)">✎</span><span class="card-del" onclick="openAddSeason(${a.id})" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:5px;color:var(--t2)">+ Saison</span><span class="card-del" onclick="delAnime(${a.id})">✕</span>
+        <span class="card-del" onclick="openAddSeason(${a.id})" style="font-size:11px;padding:3px 7px;border:0.5px solid var(--border);border-radius:5px;color:var(--t2)">+ Saison</span><span class="card-del" onclick="delAnime(${a.id})">✕</span>
         <span class="chev ${isOpen?'open':''}">▶</span>
       </div>
       ${isOpen ? `<div class="seasons-body">${seasonsHtml}</div>` : ''}
@@ -832,6 +832,18 @@ function closeEditModal() {
 document.getElementById('edit-modal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeEditModal();
 });
+
+// Long press support
+let pressTimer = null;
+document.addEventListener('touchstart', e => {
+  const card = e.target.closest('.card-head[data-anime-id]');
+  if (!card) return;
+  pressTimer = setTimeout(() => {
+    openEditSeasons(parseInt(card.dataset.animeId));
+  }, 600);
+}, {passive:true});
+document.addEventListener('touchend', () => clearTimeout(pressTimer), {passive:true});
+document.addEventListener('touchmove', () => clearTimeout(pressTimer), {passive:true});
 </script>
 </body>
 </html>
