@@ -55,6 +55,9 @@ html,body{height:100%;background:var(--bg0);color:var(--t1);font-family:var(--ff
 .stat{background:var(--bg2);border:0.5px solid var(--border);border-radius:9px;padding:.65rem .75rem;text-align:center}
 .stat-n{font-family:var(--ff-display);font-size:26px;color:var(--t1);line-height:1}
 .stat-l{font-size:10px;color:var(--t3);margin-top:2px;letter-spacing:.06em;text-transform:uppercase}
+.stat{cursor:pointer;transition:border-color .15s}
+.stat.active{border-color:var(--border2);background:var(--bg4)}
+.stat.active .stat-l{color:var(--accent2)}
 
 /* LIST */
 .list-wrap{flex:1;overflow-y:auto;padding:0 1.25rem;padding-bottom:calc(5rem + var(--safe-bottom));-webkit-overflow-scrolling:touch}
@@ -270,6 +273,7 @@ let selectedJikanManga = null;
 let jikanTimer = null;
 let deferredPrompt = null;
 let addSeasonToId = null;
+let activeFilter = 'all';
 
 // ─── PERSISTENCE ─────────────────────────────────────────────────────────────
 function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e){} }
@@ -299,17 +303,17 @@ function renderStats() {
     const ongoing = state.animes.filter(a => getAnimeTopStatus(a) === 'ongoing').length;
     const done = state.animes.filter(a => getAnimeTopStatus(a) === 'done').length;
     el.innerHTML = `
-      <div class="stat"><div class="stat-n">${total}</div><div class="stat-l">Titres</div></div>
-      <div class="stat"><div class="stat-n">${ongoing}</div><div class="stat-l">En cours</div></div>
-      <div class="stat"><div class="stat-n">${done}</div><div class="stat-l">Terminés</div></div>`;
+      <div class="stat ${activeFilter==='all'?'active':''}" onclick="setFilter('all')"><div class="stat-n">${total}</div><div class="stat-l">Tous</div></div>
+      <div class="stat ${activeFilter==='ongoing'?'active':''}" onclick="setFilter('ongoing')"><div class="stat-n">${ongoing}</div><div class="stat-l">En cours</div></div>
+      <div class="stat ${activeFilter==='done'?'active':''}" onclick="setFilter('done')"><div class="stat-n">${done}</div><div class="stat-l">Terminés</div></div>`;
   } else {
     const total = state.mangas.length;
     const complete = state.mangas.filter(m => m.owned >= m.total).length;
-    const missing = state.mangas.reduce((s,m) => s + Math.max(0, m.total - m.owned), 0);
+    const incomplete = state.mangas.filter(m => m.owned < m.total).length;
     el.innerHTML = `
-      <div class="stat"><div class="stat-n">${total}</div><div class="stat-l">Mangas</div></div>
-      <div class="stat"><div class="stat-n">${complete}</div><div class="stat-l">Complets</div></div>
-      <div class="stat"><div class="stat-n">${missing}</div><div class="stat-l">Manquants</div></div>`;
+      <div class="stat ${activeFilter==='all'?'active':''}" onclick="setFilter('all')"><div class="stat-n">${total}</div><div class="stat-l">Tous</div></div>
+      <div class="stat ${activeFilter==='incomplete'?'active':''}" onclick="setFilter('incomplete')"><div class="stat-n">${incomplete}</div><div class="stat-l">Incomplets</div></div>
+      <div class="stat ${activeFilter==='complete'?'active':''}" onclick="setFilter('complete')"><div class="stat-n">${complete}</div><div class="stat-l">Complets</div></div>`;
   }
 }
 
@@ -425,12 +429,14 @@ function render(listOverride) {
     const statusOrder = { ongoing: 0, done: 1 };
     const list = (listOverride || state.animes)
       .filter(a => a.title.toLowerCase().includes(q))
+      .filter(a => activeFilter === 'all' || getAnimeTopStatus(a) === activeFilter)
       .slice()
       .sort((a,b) => statusOrder[getAnimeTopStatus(a)] - statusOrder[getAnimeTopStatus(b)]);
     renderAnimes(list);
   } else {
     const list = (listOverride || state.mangas)
       .filter(m => m.title.toLowerCase().includes(q))
+      .filter(m => activeFilter === 'all' || (activeFilter === 'complete' ? m.owned >= m.total : m.owned < m.total))
       .slice()
       .sort((a,b) => {
         const aDone = a.owned >= a.total ? 1 : 0;
@@ -439,6 +445,11 @@ function render(listOverride) {
       });
     renderMangas(list);
   }
+}
+
+function setFilter(f) {
+  activeFilter = f;
+  render();
 }
 
 function filterLocal() { render(); }
@@ -526,6 +537,7 @@ function delManga(id) {
 // ─── TAB ──────────────────────────────────────────────────────────────────────
 function switchTab(tab) {
   currentTab = tab;
+  activeFilter = 'all';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.getElementById('search-input').value = '';
   render();
