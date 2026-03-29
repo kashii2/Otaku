@@ -423,7 +423,11 @@ function render(listOverride) {
   renderStats();
   const q = (document.getElementById('search-input').value||'').toLowerCase();
   if (currentTab === 'anime') {
-    const list = (listOverride || state.animes).filter(a => a.title.toLowerCase().includes(q));
+    const statusOrder = { ongoing: 0, paused: 1, done: 2 };
+    const list = (listOverride || state.animes)
+      .filter(a => a.title.toLowerCase().includes(q))
+      .slice()
+      .sort((a,b) => statusOrder[getAnimeTopStatus(a)] - statusOrder[getAnimeTopStatus(b)]);
     renderAnimes(list);
   } else {
     const list = (listOverride || state.mangas).filter(m => m.title.toLowerCase().includes(q));
