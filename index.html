@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="apple-mobile-web-app-title" content="OtakuList"/>
-<title>Otaku</title>
+<title>Otaku Tracker</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
@@ -432,7 +432,14 @@ function render(listOverride) {
       .sort((a,b) => statusOrder[getAnimeTopStatus(a)] - statusOrder[getAnimeTopStatus(b)]);
     renderAnimes(list);
   } else {
-    const list = (listOverride || state.mangas).filter(m => m.title.toLowerCase().includes(q));
+    const list = (listOverride || state.mangas)
+      .filter(m => m.title.toLowerCase().includes(q))
+      .slice()
+      .sort((a,b) => {
+        const aDone = a.owned >= a.total ? 1 : 0;
+        const bDone = b.owned >= b.total ? 1 : 0;
+        return aDone - bDone;
+      });
     renderMangas(list);
   }
 }
