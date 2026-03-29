@@ -234,7 +234,6 @@ html,body{height:100%;background:var(--bg0);color:var(--t1);font-family:var(--ff
         <select class="modal-input modal-select" id="ani-status">
           <option value="ongoing">En cours</option>
           <option value="done">Terminé</option>
-          <option value="paused">En pause</option>
         </select>
       </div>
     </div>
@@ -284,12 +283,11 @@ function load() {
 }
 
 // ─── STATUS HELPERS ──────────────────────────────────────────────────────────
-const STATUS_LABEL = { ongoing:'En cours', done:'Terminé', paused:'En pause' };
+const STATUS_LABEL = { ongoing:'En cours', done:'Terminé' };
 
 function getAnimeTopStatus(anime) {
   if (!anime.seasons.length) return 'ongoing';
   if (anime.seasons.every(s => s.status === 'done')) return 'done';
-  if (anime.seasons.some(s => s.status === 'paused') && !anime.seasons.some(s => s.status === 'ongoing')) return 'paused';
   return 'ongoing';
 }
 
@@ -352,7 +350,6 @@ function renderAnimes(list) {
         <select class="s-status-sel" onchange="setSeasonStatus(${a.id},${i},this.value)">
           <option value="ongoing" ${s.status==='ongoing'?'selected':''}>En cours</option>
           <option value="done" ${s.status==='done'?'selected':''}>Terminé</option>
-          <option value="paused" ${s.status==='paused'?'selected':''}>En pause</option>
         </select>
         <button onclick="delSeason(${a.id},${i})" style="width:24px;height:24px;border-radius:5px;background:transparent;border:0.5px solid var(--border);color:var(--t3);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
       </div>`;
@@ -425,7 +422,7 @@ function render(listOverride) {
   renderStats();
   const q = (document.getElementById('search-input').value||'').toLowerCase();
   if (currentTab === 'anime') {
-    const statusOrder = { ongoing: 0, paused: 1, done: 2 };
+    const statusOrder = { ongoing: 0, done: 1 };
     const list = (listOverride || state.animes)
       .filter(a => a.title.toLowerCase().includes(q))
       .slice()
@@ -848,7 +845,8 @@ document.getElementById('edit-modal').addEventListener('click', e => {
 });
 
 function delSeason(animeId, si) {
-  const a = state.animes.find(x => x.id === animeId);
+  const id = parseInt(animeId);
+  const a = state.animes.find(x => x.id === id);
   if (!a || a.seasons.length <= 1) return;
   a.seasons.splice(si, 1);
   save(); render();
