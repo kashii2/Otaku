@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
 <meta name="apple-mobile-web-app-title" content="OtakuList"/>
-<title>Otaku Tracker</title>
+<title>Otaku</title>
 <link rel="manifest" href="manifest.json"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
@@ -288,7 +288,9 @@ const STATUS_LABEL = { ongoing:'En cours', done:'Terminé', paused:'En pause' };
 
 function getAnimeTopStatus(anime) {
   if (!anime.seasons.length) return 'ongoing';
-  return anime.seasons[anime.seasons.length - 1].status;
+  if (anime.seasons.every(s => s.status === 'done')) return 'done';
+  if (anime.seasons.some(s => s.status === 'paused') && !anime.seasons.some(s => s.status === 'ongoing')) return 'paused';
+  return 'ongoing';
 }
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
